@@ -1,0 +1,10 @@
+{
+  "//": "lab2 ships a pom.xml, but the course's private CS61B deps (junit, hamcrest, ...) only resolve via library-sp21's local Maven repo, which the Java extension doesn't use. So disable Maven import and treat lab2 as an unmanaged project (same as proj0/lab1). Source root is lab2/ itself (packages DebugExercise, IntList, Arithmetic are subfolders); the *Test.java files need junit + hamcrest from library-sp21/javalib.",
+  "java.import.maven.enabled": false,
+  "java.project.sourcePaths": ["."],
+  "java.project.outputPath": "bin",
+  "java.project.referencedLibraries": [
+    "../library-sp21/javalib/junit-4.12.jar",
+    "../library-sp21/javalib/hamcrest-core-1.3.jar"
+  ]
+}
