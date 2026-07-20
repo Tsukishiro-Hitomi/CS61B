@@ -138,6 +138,7 @@ public class LinkedListDequeTest {
         for(int i : d) {
             sum += i;
         }
-        assertEquals("sum variable should equal to the sum of items in d", sum, 6);
+        // assertEquals 的格式：expect, real
+        assertEquals("sum variable should equal to the sum of items in d", 6, sum);
     }
 }
