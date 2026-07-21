@@ -1,0 +1,8 @@
+{
+  "//": "proj0 (2048) is an unmanaged (non-Maven) Java project. Source root is proj0/ itself (classes live in package game2048), and the classpath is the three jars shipped in proj0/javalib.",
+  "java.project.sourcePaths": ["."],
+  "java.project.outputPath": "bin",
+  "java.project.referencedLibraries": [
+    "javalib/*.jar"
+  ]
+}

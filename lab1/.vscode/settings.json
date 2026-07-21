@@ -1,0 +1,5 @@
+{
+  "//": "lab1 is an unmanaged (non-Maven) project. Its classes live in the default package directly under lab1/, and depend only on the JDK standard library.",
+  "java.project.sourcePaths": ["."],
+  "java.project.outputPath": "bin"
+}
