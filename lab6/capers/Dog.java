@@ -10,7 +10,7 @@ import static capers.Utils.*;
 public class Dog implements Serializable { // TODO
 
     /** Folder that dogs live in. */
-    static final File DOG_FOLDER = Utils.join(System.getProperty("user.dir"), ".capers", "dogs"); // TODO (hint: look at the `join`
+    static final File DOG_FOLDER = Utils.join(CapersRepository.CAPERS_FOLDER, "dogs"); // TODO (hint: look at the `join`
                                          //      function in Utils)
 
     /** Age of dog. */
@@ -58,6 +58,7 @@ public class Dog implements Serializable { // TODO
      */
     public void saveDog() {
         // TODO (hint: don't forget dog names are unique)
+        // 由于每只狗的名字不同，因此分别创建与名字对应的文件
         File outFile = Utils.join(DOG_FOLDER, this.name);
         Utils.writeObject(outFile, this);
     }

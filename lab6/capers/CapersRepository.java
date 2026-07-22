@@ -32,9 +32,12 @@ public class CapersRepository {
      */
     public static void setupPersistence() {
         // TODO
+        // .capers 和 .dogs 均为文件夹，因此需要显式创建
+        // story 为文件，可以在写入时直接创建
         CAPERS_FOLDER.mkdir();
         File dogs = Utils.join(CAPERS_FOLDER, "dogs");
         dogs.mkdir();
+        // story.createNewFile();
     }
 
     /**
@@ -62,6 +65,7 @@ public class CapersRepository {
      */
     public static void makeDog(String name, String breed, int age) {
         // TODO
+        // 注意用关键字 new 调用构造器创建对象
         Dog newDog = new Dog(name, breed, age);
         newDog.saveDog();
         System.out.println(newDog.toString());
