@@ -1,0 +1,49 @@
+Lab7 BSTMap 速度测试结果
+=========================
+运行环境: JDK 17, macOS (Apple Silicon)
+命令:
+  java -cp "target/classes:../library-sp21/javalib/algs4.jar" bstmap.InsertInOrderSpeedTest
+  java -cp "target/classes:../library-sp21/javalib/algs4.jar" bstmap.InsertRandomSpeedTest
+时间单位: 秒 (sec)。 "溢出" = 递归太深触发 StackOverflowError，未能完成。
+
+
+InsertInOrderSpeedTest —— 按字典序【递增】插入
+------------------------------------------------
+   N          ULLMap     BSTMap     TreeMap    HashMap
+   1000       0.01       0.01       0.00       0.00
+   10000      0.54       0.35       0.01       0.00
+   100000     溢出       13.45      0.04       0.02
+
+观察: 有序插入时, 每个新 key 都比树中所有 key 大, 于是全部挂到最右下,
+      BST 退化成一条“链”(树高 = N)。put 变成 O(N), 总耗时 O(N^2)——
+      N 从 1万 到 10万 (×10), BSTMap 从 0.35s 涨到 13.45s (≈×38, 明显超线性)。
+      ULLMap 更糟, 且其递归查找在 N=10万 时直接栈溢出。
+
+
+InsertRandomSpeedTest —— 随机字符串插入 (L=10)
+------------------------------------------------
+   N          ULLMap     BSTMap     TreeMap    HashMap
+   1000       0.01       0.00       0.00       0.00
+   100000     溢出       0.05       0.09       0.03
+   1000000    溢出       0.92       0.93       0.46
+
+观察: 随机插入时, BST 大致保持平衡(树高 ≈ log2(N) ≈ 20), put 为 O(log N),
+      总耗时 O(N log N)。BSTMap 在 100万 元素时只要 0.92s, 已经和 Java
+      自带的 TreeMap(红黑树, 0.93s) 不相上下。ULLMap 因线性查找 + 递归,
+      在大 N 时栈溢出。
+
+
+结论 / 收获
+------------------------------------------------
+1. 同一个 BSTMap, 仅“插入顺序”不同, 性能天差地别:
+   N=100000 时  有序=13.45s  vs  随机=0.05s。
+   原因: 顺序决定树的形状 —— 有序 → 退化成链(O(N)高), 随机 → 大致平衡(O(logN)高)。
+
+2. BST 的最坏情况(有序输入)是 O(N) 树高 → 单次操作 O(N)。这正是
+   “平衡二叉搜索树”(如 TreeMap 底层的红黑树、2-3 树) 存在的动机:
+   无论插入顺序如何都强制保持 O(log N) 树高。
+
+3. HashMap 平均 O(1), 各项测试里最快 —— 这是下一站 (lab8, 哈希表) 的主题。
+
+4. ULLMap(无序链表)每次操作 O(N)、总 O(N^2), 且递归实现会在大 N 栈溢出,
+   是最慢的实现, 说明“用什么数据结构”对性能影响是数量级的。
