@@ -1,0 +1,64 @@
+Lab8 MyHashMap 速度测试结果
+============================
+运行环境: JDK 17, macOS (Apple Silicon)
+命令:
+  java -cp "target/classes:../library-sp21/javalib/algs4.jar" speed.InsertInOrderSpeedTest
+  java -cp "target/classes:../library-sp21/javalib/algs4.jar" speed.InsertRandomSpeedTest
+  java -cp "target/classes:../library-sp21/javalib/algs4.jar" speed.BucketsSpeedTest
+时间单位: 秒(sec)。 "溢出" = ULLMap 递归查找太深触发 StackOverflowError。
+
+
+========== 1. InsertInOrderSpeedTest —— 按字典序【递增】插入 ==========
+   N          ULLMap     MyHashMap     Java HashMap
+   10000      0.53       0.01          0.00
+   100000     溢出       0.07          0.04
+
+观察: MyHashMap 有序插入依然很快(0.07s @ 10万)。对比 lab7 的 BSTMap——
+      同样有序插入 10 万个要 13.45 秒(退化成链)! 而 HashMap 完全不受插入
+      顺序影响, 因为哈希函数会把 key 打散到各个桶, 不存在"退化"。
+      MyHashMap 与 Java 内置 HashMap 在同一数量级(约 2 倍以内)。
+
+
+========== 2. InsertRandomSpeedTest —— 随机字符串插入(L=10) ==========
+   N          ULLMap     MyHashMap     Java HashMap
+   10000      0.29       0.01          0.00
+   100000     溢出       0.09          0.02
+
+观察: 随机插入下三者相对关系和有序时一致——MyHashMap/Java 均摊 O(1) 很快,
+      ULLMap 因线性查找+递归在大 N 溢出。说明 HashMap 有序/随机都稳定 O(1)。
+
+
+========== 3. BucketsSpeedTest —— 5 种桶类型(随机, L=10) ==========
+   N          ArrayList  LinkedList  TreeSet  HashSet  PriorityQueue
+   100000     0.09       0.08        0.17     0.14     0.09
+   1000000    0.89       0.94        1.33     1.54     1.02
+
+观察: 五种桶的差别很小(1 百万时也就 0.89~1.54s, 2 倍以内)。ArrayList/
+      LinkedList/PriorityQueue 略快, TreeSet/HashSet 略慢。
+
+
+========== 文档要求回答的问题 ==========
+
+Q1: 什么时候该用 BSTMap/TreeMap 而不是 HashMap?
+    HashMap 是 O(1), 但 key 是【无序】的(按哈希散列, 取出顺序随机)。
+    当你需要"顺序"时就该用 BSTMap/TreeMap(O(log n) 但保持有序):
+      - 需要按 key 有序遍历;
+      - 范围查询(所有介于 X 和 Y 之间的 key);
+      - 求最小/最大, 或 floor/ceiling(离某 key 最近的键);
+    只做"按精确 key 查单个值"→ 用 HashMap(更快); 需要顺序/范围/邻近 → 用 TreeMap。
+
+Q2: 如果桶内能用"对数查找(TreeSet)"或"常数查找(HashSet)", 哈希表会更快吗?
+    基本不会。因为我们把负载因子控制在 <= 0.75, 每个桶平均装不到 1 个元素——
+    桶本来就极小, 在 LinkedList 里线性扫也几乎是 O(1)(没什么可扫的)。
+    TreeSet 的 O(log b)、HashSet 的 O(1) 只有在【桶很大】时才有意义, 而桶变大
+    只会发生在"哈希函数很差"或"不扩容导致负载因子失控"的情况下。
+    实测里 TreeSet/HashSet 反而略慢, 因为它们每个元素的额外开销(建树/再哈希)
+    在桶极小时得不偿失。
+    结论: 只要哈希函数好、负载因子有界, 花哨的桶结构不会让哈希表更快;
+          真正决定性能的是"好的 hashCode + 及时扩容", 而不是桶用什么数据结构。
+
+
+========== 总结 ==========
+- HashMap 相比 BST 的最大优势: 性能不依赖插入顺序(不会退化), 均摊 O(1)。
+- HashMap 的代价: 放弃了"有序性"——要顺序/范围查询就得回到 TreeMap。
+- 哈希表性能的关键在"好哈希 + 控制负载因子", 桶的具体实现影响很小。
