@@ -1,7 +1,7 @@
 package gitlet;
 import java.io.File;
-import static gitlet.Utils.join;
-import static gitlet.Repository.init;
+import static gitlet.Utils.*;
+import static gitlet.Repository.*;
 import gitlet.Commit;
 /** Driver class for Gitlet, a subset of the Git version-control system.
  *  @author TODO
@@ -34,6 +34,12 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);
+                }
+                String fileName = args[1];
+                Repository.add(fileName);
                 break;
             // TODO: FILL THE REST IN
             case "commit":

@@ -42,6 +42,10 @@ public class Commit implements Serializable {
         this.message = message;
     }
 
+    Commit() {
+        
+    }
+
     public void commit() {
         
     }
@@ -69,7 +73,7 @@ public class Commit implements Serializable {
         writeContents(Repository.HEADFile, "master");
 
         /* 在 index 中写入一个空的 StagingArea */
-        writeObject(Repository.IndexFile, new StagingArea());
+        writeObject(Repository.indexFile, new StagingArea());
     }
 
     public void printCommit() {
@@ -79,5 +83,9 @@ public class Commit implements Serializable {
     private String computeID() {
         String idToCompute = message + date + parent + secondParent + blobs;
         return sha1(idToCompute);
+    }
+
+    public String findBlobID(String fileName) {
+        return blobs.get(fileName);
     }
 }
