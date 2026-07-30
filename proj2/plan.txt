@@ -1,0 +1,156 @@
+  实现计划
+
+  1. 先搭好 CLI 和持久化骨架
+
+     在 Main.main 中统一处理：
+      - 空参数：Please enter a command.
+      - 未知命令：No command with that name exists.
+      - 参数数量/格式错误：Incorrect operands.
+      - 除 init 外，未初始化时报：Not in an initialized Gitlet
+        directory.
+
+     推荐 .gitlet 结构：
+
+     .gitlet/
+       commits/        # sha1 -> serialized Commit
+       blobs/          # sha1 -> raw file bytes
+       refs/heads/     # branch name -> commit id
+       HEAD            # current branch name, e.g. master
+       index           # serialized staging area
+
+     新增一个 StagingArea 类会让实现更稳：TreeMap<String,
+     String> additions，TreeSet<String> removals。用 TreeMap/
+     TreeSet 是为了 status 和确定性 SHA 更方便。
+
+  2. 实现数据模型
+
+     Commit 建议字段：
+      - message
+      - timestamp
+      - parent
+      - secondParent，merge 时用
+      - TreeMap<String, String> blobs，文件名到 blob SHA-1
+      - id
+
+     提交 ID 必须由提交内容决定，官方要求 commit SHA-1
+     包含文件引用、父提交、日志消息和时间等元数据
+     (sp21.datastructur.es
+
+     (https://sp21.datastructur.es/materials/proj/proj2/proj2?utm_source=openai))。blob
+     ID 直接用文件 bytes 的 SHA-1，内容相同只存一份。
+
+  3. 第一阶段：Checkpoint 命令
+
+     官方 checkpoint 测这些命令：init、add、commit、checkout --
+     [file]、checkout [commit id] -- [file]、log
+     (sp21.datastructur.es
+
+     (https://sp21.datastructur.es/materials/proj/proj2/proj2))。建议先只做到这组，跑通本地
+     samples。
+
+     顺序：
+      - init：创建 .gitlet，生成 initial commit，创建 master，
+        HEAD=master
+
+      - add：文件不存在报错；若与 head 中版本相同则取消暂存；否
+        则写 blob 并记录到 stage
+
+      - commit：复制父提交的 blob map，应用 additions/removals，
+        清空 stage，移动当前 branch 指针
+
+      - log：只沿 first parent 往前打印；merge commit 的 second
+        parent 先预留格式
+
+      - checkout file：从 head 或指定 commit 恢复文件，不改
+        stage
+
+     每完成一个命令就跑：
+
+     cd proj2
+     make check
+
+  4. 第二阶段：补全本地基础命令
+
+     依次实现：
+      - rm
+      - global-log
+      - find
+      - status
+      - branch
+      - rm-branch
+      - checkout [branch]
+      - reset
+
+     关键复用点：
+      - checkout branch 和 reset 都可以复用“把工作目录切到某个
+        commit”的 helper。
+
+      - 在会覆盖工作目录的命令前统一做 untracked-file 检查。
+      - status 前三块必须完整；官方说明后两块 Modifications Not
+        Staged For Commit 和 Untracked Files
+        是额外加分，可以先打印空 header，主线稳定后再补
+        (sp21.datastructur.es
+
+        (https://sp21.datastructur.es/materials/proj/proj2/proj2))。
+
+  5. 第三阶段：实现 merge
+
+     不要最后一天才做，官方也提醒 merge 最长、最容易出错
+     (sp21.datastructur.es
+
+     (https://sp21.datastructur.es/materials/proj/proj2/proj2))。
+      - 先检查失败条件：stage 非空、branch 不存在、merge 自己、
+        untracked 文件阻挡。
+
+      - 找 split point：从 current head 和 given head 各自沿
+        parent/secondParent 做图遍历，找最近公共祖先。
+
+      - 处理特殊情况：
+          - given 是 current 祖先：打印 Given branch is an
+            ancestor of the current branch.
+
+          - current 是 given 祖先：checkout given branch，打印
+            Current branch fast-forwarded.
+
+      - 对所有相关文件名做三方比较：split/current/given。
+      - 无冲突时自动 stage given 改动并创建 merge commit。
+      - 冲突时写入：
+
+        <<<<<<< HEAD
+        current contents=======
+        given contents>>>>>>>
+        然后 stage，并在自动 commit 后打印 Encountered a merge
+        conflict.
+
+  6. 测试策略
+
+     先用已有 sample：
+      - proj2/testing/samples/test01-init.in:1
+      - proj2/testing/samples/test02-basic-checkout.in:1
+      - proj2/testing/samples/test03-basic-log.in:1
+      - proj2/testing/samples/test04-prev-checkout.in:1
+
+     然后在 proj2/testing/student_tests/ 加自己的 .in：
+      - 参数错误和未初始化错误
+      - add 后改回原内容
+      - rm tracked / staged / neither
+      - branch checkout 删除多余 tracked 文件
+      - untracked file 阻挡 checkout/reset/merge
+      - reset 到 abbreviated commit id
+      - merge：fast-forward、ancestor、双方同改、双方同删、冲突
+
+     官方也提供 staff solution 用来验证边界行为和测试文件；你的
+     skeleton 里已有 proj2/testing/staff-runner.py，可按官方
+     staff guide 在 instructional server 上跑
+     (sp21.datastructur.es
+
+     (https://sp21.datastructur.es/materials/guides/staff-gitlet?utm_source=openai))。
+
+  7. 最后再考虑 extra credit
+
+     Remote 命令 add-remote、rm-remote、push、fetch、pull 是
+     extra credit，官方明确说不要在主项目完成前规划它们
+     (sp21.datastructur.es
+
+     (https://sp21.datastructur.es/materials/proj/proj2/proj2))。主线先做到
+     full grader 的本地 Gitlet。

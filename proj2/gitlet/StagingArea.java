@@ -15,7 +15,7 @@ public class StagingArea implements Serializable {
     }
 
     /* 将文件加入暂存区 */
-    public void stageAddition(String fileName, String BlobID) {
+    public boolean stageAddition(String fileName, String BlobID) {
         /* 如果删除文件已经存在于删除区，则移除 */
         if (isStagedForRemovals(fileName)) {
             unstageRemoval(fileName);
@@ -27,8 +27,6 @@ public class StagingArea implements Serializable {
         if (!isSameAsHEAD(fileName, BlobID)) {
             /* 增加区加入文件名 */
             additions.put(fileName, BlobID);
-            /* 同时在 BlobID 对应目录下保存文件内容 */
-            Repository.saveFileContent(fileName, BlobID);
         }
     }
 

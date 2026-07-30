@@ -62,9 +62,15 @@ public class Repository {
         byte[] fileContent = readContents(filePath);
         String BlobID = sha1(fileContent);
 
-        /* 读取暂存区，更新，保存 */
+        /* 读取暂存区 */
         StagingArea currentStage = Repository.readStage();
-        currentStage.stageAddition(fileName, BlobID);
+
+        /* 如果该文件被成功加入暂存区，则在 BlobID 对应路径下保存该文件内容 */
+        if (currentStage.stageAddition(fileName, BlobID)) {
+            saveFileContent(fileName, BlobID);
+        }
+
+        /* 保存暂存区 */
         Repository.saveStage(currentStage);
     }
 
