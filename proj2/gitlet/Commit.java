@@ -3,6 +3,11 @@ package gitlet;
 // TODO: any imports you need here
 
 import java.util.Date; // TODO: You'll likely use this in this class
+import static gitlet.Utils.*;
+import java.io.File;
+import java.io.Serializable;
+import java.util.Map;
+import java.util.TreeMap;
 
 /** Represents a gitlet commit object.
  *  TODO: It's a good idea to give a description here of what else this Class
@@ -10,7 +15,7 @@ import java.util.Date; // TODO: You'll likely use this in this class
  *
  *  @author TODO
  */
-public class Commit {
+public class Commit implements Serializable {
     /**
      * TODO: add instance variables here.
      *
@@ -19,8 +24,60 @@ public class Commit {
      * variable is used. We've provided one example for `message`.
      */
 
-    /** The message of this Commit. */
+    /** commit message. */
     private String message;
+    /* commit date. */
+    private Date date;
+    /* 用 commit id 存储 parent 和 secondParent。 */
+    private String parent;
+    private String secondParent;
+    /* blobs: 存储文件名到 blob id 的映射。 */
+    private TreeMap<String, String> blobs;
+    /* SHA-1 ID */
+    private String ID;
+    
 
     /* TODO: fill in the rest of this class. */
+    Commit(String message) {
+        this.message = message;
+    }
+
+    public void commit() {
+        
+    }
+
+    static void initialCommit() {
+        Commit init = new Commit("initial commit");
+        init.date = new Date(0);
+        init.parent = null;
+        init.secondParent = null;
+        /* initial commit 的 blob 映射为空 */
+        init.blobs = new TreeMap<>();
+
+        init.ID = init.computeID();
+        
+        /* 在 commits 目录下新建与 id 同名的提交。
+        该提交文件将 commit Object 序列化写入。 */
+        File commitFile = join(Repository.commitsDir, init.ID);
+        writeObject(commitFile, init);
+        
+        /* 在 heads 目录下新建名为 master 的分支，该分支指向当前的 id。*/
+        File masterFile = join(Repository.headsDir, "master");
+        writeContents(masterFile, init.ID);
+
+        /* 当前 HEAD 指向 master */
+        writeContents(Repository.HEADFile, "master");
+
+        /* 在 index 中写入一个空的 StagingArea */
+        writeObject(Repository.IndexFile, new StagingArea());
+    }
+
+    public void printCommit() {
+
+    }
+
+    private String computeID() {
+        String idToCompute = message + date + parent + secondParent + blobs;
+        return sha1(idToCompute);
+    }
 }
