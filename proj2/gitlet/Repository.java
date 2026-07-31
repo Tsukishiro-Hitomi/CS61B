@@ -5,6 +5,7 @@ import static gitlet.Utils.*;
 import gitlet.Commit;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.List;
 
 // TODO: any imports you need here
 
@@ -144,6 +145,15 @@ public class Repository {
                 break;
             }
             currentCommit = readCommit(parentCommitID);
+        }
+    }
+
+    /* 用于实现 global-log 方法 */
+    static void globalLog() {
+        List<String> commitsIDs = plainFilenamesIn(Repository.commitsDir);
+        for (String commitID : commitsIDs) {
+            Commit c = readCommit(commitID);
+            c.printCommit();
         }
     }
 
