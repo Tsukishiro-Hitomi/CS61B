@@ -53,12 +53,12 @@ public class Repository {
 
     /* 用于实现 add 方法 */
     static void add(String fileName) {
-        /* 计算文件路径，检查是否存在 */
-        File filePath = join(Repository.CWD, fileName);
-        if (!filePath.exists() || !filePath.isFile()) {
+        if (!checkIsValidFile(fileName)) {
             System.out.println("File does not exist.");
             System.exit(0);
         }
+
+        File filePath = join(Repository.CWD, fileName);
 
         /* 读取文件内容，计算对应的 blobID */
         byte[] fileContent = readContents(filePath);
@@ -86,7 +86,7 @@ public class Repository {
         }
 
         /* 读取当前 HEAD 分支对应的 commit 的内容 */
-        String headBranch = readHEAD();
+        String headBranch = readHEADBranch();
         String headCommitID = readBranchCommitID(headBranch);
         Commit headCommit = readCommit(headCommitID);
 
@@ -109,8 +109,48 @@ public class Repository {
         currentStage.clearStage();
     }
 
+    /* 用于实现 rm 方法 */
+    static void remove(String fileName) {
+        /* 检查文件是否已经被提交到暂存区 */
+        StagingArea currentStage = StagingArea.readStage();
+        if (currentStage.isStagedForAddition(fileName)) {
+            currentStage.unstageAddition(fileName);
+            currentStage.saveStage();
+            return;
+        }
+
+        /* 检查文件是否被当前分支跟踪 */
+        Commit headCommit = readHEADCommit();
+        if (headCommit.existsFile(fileName)) {
+            /* 将文件存入暂存区的删除区 */
+            currentStage.stageRemoval(fileName);
+            currentStage.saveStage();
+            /* 如果文件存在于工作区目录中，则删除 */
+            deleteFile(fileName);
+            return;
+        }
+
+        /* 如果以上两种情况未被覆盖，报错 */
+        System.out.println("No reason to remove the file.");
+        System.exit(0);
+    }
+
+    /* 检查文件是否存在 */
+    private static boolean checkIsValidFile(String fileName) {
+        File filePath = join(Repository.CWD, fileName);
+        return filePath.exists() && filePath.isFile();
+    }
+
+    /* 从工作区中删除文件 */
+    private static void deleteFile(String fileName) {
+        if (checkIsValidFile(fileName)) {
+            File filePath = join(Repository.CWD, fileName);
+            restrictedDelete(filePath);
+        }
+    }
+
     /* 读取当前的 HEAD 分支 */
-    static String readHEAD() {
+    static String readHEADBranch() {
         String headBranch = readContentsAsString(Repository.HEADFile);
         return headBranch;
     }
@@ -127,6 +167,13 @@ public class Repository {
         File commitFile = join(commitsDir, commitID);
         Commit c = readObject(commitFile, Commit.class);
         return c;
+    }
+
+    /* 读取当前 HEAD 分支对应的 commit */
+    static Commit readHEADCommit() {
+        String headBranch = readHEADBranch();
+        String headBranchCommitID = readBranchCommitID(headBranch);
+        return readCommit(headBranchCommitID);
     }
 
     /* 更新某个分支对应的 commit */

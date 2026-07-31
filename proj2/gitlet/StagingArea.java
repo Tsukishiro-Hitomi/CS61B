@@ -33,6 +33,11 @@ public class StagingArea implements Serializable {
         return false;
     }
 
+    /* 将文件加入删除区 */
+    public void stageRemoval(String fileName) {
+        removals.add(fileName);
+    }
+
     public boolean isStagedForAddition(String fileName) {
         return additions.containsKey(fileName);
     }
@@ -51,9 +56,7 @@ public class StagingArea implements Serializable {
 
     /* 用于比较当前文件的 BlobID 是否与当前的 HEAD 提交相同 */
     private boolean isSameAsHEAD(String fileName, String BlobID) {
-        String HeadBranch = Repository.readHEAD();
-        String HeadCommitID = Repository.readBranchCommitID(HeadBranch);
-        Commit HeadCommit = Repository.readCommit(HeadCommitID);
+        Commit HeadCommit = Repository.readHEADCommit();
         String HeadBlobID = HeadCommit.findBlobID(fileName);
         /* 注意字符串的比较用.equals() */
         if (HeadBlobID != null && HeadBlobID.equals(BlobID)) {

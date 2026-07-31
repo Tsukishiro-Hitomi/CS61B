@@ -106,4 +106,8 @@ public class Commit implements Serializable {
     public TreeMap<String, String> visitBlobs() {
         return this.blobs;
     }
+
+    public boolean existsFile(String fileName) {
+        return this.blobs.containsKey(fileName);
+    }
 }
