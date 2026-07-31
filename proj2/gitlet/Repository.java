@@ -112,11 +112,13 @@ public class Repository {
 
     /* 用于实现 rm 方法 */
     static void remove(String fileName) {
+        boolean removed = false;
         /* 检查文件是否已经被提交到暂存区 */
         StagingArea currentStage = StagingArea.readStage();
         if (currentStage.isStagedForAddition(fileName)) {
             currentStage.unstageAddition(fileName);
             currentStage.saveStage();
+            removed = true;
         }
 
         /* 检查文件是否被当前分支跟踪 */
@@ -127,12 +129,14 @@ public class Repository {
             currentStage.saveStage();
             /* 如果文件存在于工作区目录中，则删除 */
             deleteFile(fileName);
-            return;
+            removed = true;
         }
 
         /* 如果以上两种情况未被覆盖，报错 */
-        System.out.println("No reason to remove the file.");
-        System.exit(0);
+        if (!removed) {
+            System.out.println("No reason to remove the file.");
+            System.exit(0);
+        }
     }
 
     /* 用于实现 log 方法 */
@@ -172,6 +176,48 @@ public class Repository {
             System.out.println("Found no commit with that message.");
             System.exit(0);
         }
+    }
+
+    /* 用于实现 status 方法 */
+    static void printStatus() {
+        /* 打印所有分支 */
+        System.out.println("=== Branches ===");
+        List<String> branchNames = plainFilenamesIn(Repository.headsDir);
+        String headBranch = readHEADBranch();
+        for (String branchName : branchNames) {
+            if (branchName.equals(headBranch)) {
+                System.out.println(String.format("*%s", branchName));
+            } else {
+                System.out.println(branchName);
+            }
+        }
+        System.out.println();
+
+        /* 打印暂存区的文件 */
+        System.out.println("=== Staged Files ===");
+        StagingArea currentStage = StagingArea.readStage();
+        for (String fileName : currentStage.visitAdditions().keySet()) {
+            System.out.println(fileName);
+        }
+        System.out.println();
+        System.out.println("=== Removed Files ===");
+        for (String fileName : currentStage.visitRemovals()) {
+            System.out.println(fileName);
+        }
+        System.out.println();
+
+        /* 打印被修改并且没有被加入暂存区的文件 */
+        System.out.println("=== Modifications Not Staged For commit ===");
+        /* 情况一：被当前分支跟踪，在工作区发生变化，并且未被提交到暂存区 */
+
+
+        /* 打印未被跟踪的内容 */
+        System.out.println("=== Untracked Files ===");
+    }
+
+    /* status 的 helper function，用于查找情况一 */
+    private static List<String> statusHelper1() {
+        return null;
     }
 
     /* 检查文件是否存在 */
