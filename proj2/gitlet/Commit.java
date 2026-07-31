@@ -115,6 +115,14 @@ public class Commit implements Serializable {
         return this.parent;
     }
 
+    public String visitMessage() {
+        return this.message;
+    }
+
+    public String visitID() {
+        return this.ID;
+    }
+
     public boolean existsFile(String fileName) {
         return this.blobs.containsKey(fileName);
     }

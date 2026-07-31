@@ -157,6 +157,23 @@ public class Repository {
         }
     }
 
+    /* 用于实现 find 方法 */
+    static void find(String message) {
+        List<String> commitsIDs = plainFilenamesIn(Repository.commitsDir);
+        boolean hasFound = false;
+        for (String commitID : commitsIDs) {
+            Commit c = readCommit(commitID);
+            if (c.visitMessage().equals(message)) {
+                System.out.println(c.visitID());
+                hasFound = true;
+            }
+        }   
+        if (!hasFound) {
+            System.out.println("Found no commit with that message.");
+            System.exit(0);
+        }
+    }
+
     /* 检查文件是否存在 */
     private static boolean checkIsValidFile(String fileName) {
         File filePath = join(Repository.CWD, fileName);

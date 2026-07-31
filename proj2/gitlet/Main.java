@@ -93,6 +93,12 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);
+                }
+                message = args[1];
+                Repository.find(message);
                 break;
             case "status":
                 if (!isInitialized()) {
