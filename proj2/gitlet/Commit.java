@@ -1,20 +1,17 @@
 package gitlet;
 
-// TODO: any imports you need here
+import java.util.Date; 
+import java.util.Formatter;
+import java.util.Locale;
 
-import java.util.Date; // TODO: You'll likely use this in this class
 import static gitlet.Utils.*;
 import java.io.File;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Represents a gitlet commit object.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
- *
- *  @author TODO
- */
+/** Represents a gitlet commit object.*/
+
 public class Commit implements Serializable {
     /**
      * TODO: add instance variables here.
@@ -91,7 +88,14 @@ public class Commit implements Serializable {
     }
 
     public void printCommit() {
-
+        System.out.println("===");
+        System.out.println(String.format("commit %s", this.ID));
+        if (this.secondParent != null) {
+            System.out.println(String.format("Merge: %s %s", this.parent.substring(0, 7), this.secondParent.substring(0, 7)));
+        }
+        System.out.println(String.format(Locale.US, "Date: %1$ta %1$tb %1$td %1$tT %1$tY %1$tz", this.date));
+        System.out.println(this.message);
+        System.out.println();
     }
 
     private String computeID() {
@@ -105,6 +109,10 @@ public class Commit implements Serializable {
 
     public TreeMap<String, String> visitBlobs() {
         return this.blobs;
+    }
+
+    public String visitParent() {
+        return this.parent;
     }
 
     public boolean existsFile(String fileName) {

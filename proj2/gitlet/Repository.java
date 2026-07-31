@@ -134,6 +134,19 @@ public class Repository {
         System.exit(0);
     }
 
+    /* 用于实现 log 方法 */
+    static void log() {
+        Commit currentCommit = readHEADCommit();
+        while (currentCommit != null) {
+            currentCommit.printCommit();
+            String parentCommitID = currentCommit.visitParent();
+            if (parentCommitID == null) {
+                break;
+            }
+            currentCommit = readCommit(parentCommitID);
+        }
+    }
+
     /* 检查文件是否存在 */
     private static boolean checkIsValidFile(String fileName) {
         File filePath = join(Repository.CWD, fileName);
