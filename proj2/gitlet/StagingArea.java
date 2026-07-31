@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Set;
 import java.util.TreeSet;
+import static gitlet.Utils.*;
 
 public class StagingArea implements Serializable {
     private TreeMap<String, String> additions;
@@ -27,7 +28,9 @@ public class StagingArea implements Serializable {
         if (!isSameAsHEAD(fileName, BlobID)) {
             /* 增加区加入文件名 */
             additions.put(fileName, BlobID);
+            return true;
         }
+        return false;
     }
 
     public boolean isStagedForAddition(String fileName) {
@@ -58,5 +61,36 @@ public class StagingArea implements Serializable {
         }
         return false;
     }
+
+    /* 读取当前的暂存区 */
+    static StagingArea readStage() {
+        return readObject(Repository.indexFile, StagingArea.class);
+    }
+
+    /* 保存当前的暂存区 */
+    public void saveStage() {
+        writeObject(Repository.indexFile, this);
+    }
+
+    /* 清除暂存区 */
+    public void clearStage() {
+        additions.clear();
+        removals.clear();
+        saveStage();
+    }
+
+    /* 暂存区是否为空 */
+    public boolean isEmptyStage() {
+        return additions.isEmpty() && removals.isEmpty();
+    }
     
+    /* 返回 additions */
+    public TreeMap<String, String> visitAdditions() {
+        return this.additions;
+    }
+
+    /* 返回 removals */
+    public TreeSet<String> visitRemovals() {
+        return this.removals;
+    }
 }

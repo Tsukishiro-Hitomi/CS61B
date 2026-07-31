@@ -42,12 +42,26 @@ public class Commit implements Serializable {
         this.message = message;
     }
 
+    Commit(String message, String parent, String secondParent, TreeMap<String, String> blobs) {
+        this.message = message;
+        this.parent = parent;
+        this.secondParent = secondParent;
+        this.blobs = blobs;
+        this.date = new Date();
+        this.ID = computeID();
+    }
+
     Commit() {
         
     }
 
-    public void commit() {
-        
+    public void commit(String currentBranchName) {
+        /* 在 commits 目录下新建同名 commit ，将自己序列化写入*/
+        File commitFile = join(Repository.commitsDir, this.ID);
+        writeObject(commitFile, this);
+
+        /* 更新分支对应的 commit */
+        Repository.updateBranch(currentBranchName, this.ID);
     }
 
     static void initialCommit() {
@@ -87,5 +101,9 @@ public class Commit implements Serializable {
 
     public String findBlobID(String fileName) {
         return blobs.get(fileName);
+    }
+
+    public TreeMap<String, String> visitBlobs() {
+        return this.blobs;
     }
 }

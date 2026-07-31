@@ -3,6 +3,8 @@ package gitlet;
 import java.io.File;
 import static gitlet.Utils.*;
 import gitlet.Commit;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 // TODO: any imports you need here
 
@@ -63,7 +65,7 @@ public class Repository {
         String BlobID = sha1(fileContent);
 
         /* 读取暂存区 */
-        StagingArea currentStage = Repository.readStage();
+        StagingArea currentStage = StagingArea.readStage();
 
         /* 如果该文件被成功加入暂存区，则在 BlobID 对应路径下保存该文件内容 */
         if (currentStage.stageAddition(fileName, BlobID)) {
@@ -71,17 +73,40 @@ public class Repository {
         }
 
         /* 保存暂存区 */
-        Repository.saveStage(currentStage);
+        currentStage.saveStage();
     }
 
-    /* 读取当前的暂存区 */
-    static StagingArea readStage() {
-        return readObject(Repository.indexFile, StagingArea.class);
-    }
+    /* 用于实现 commit 方法 */
+    static void commit(String message) {
+        /* 检查当前暂存区是否为空 */
+        StagingArea currentStage = StagingArea.readStage();
+        if (currentStage.isEmptyStage()) {
+            System.out.println("No changes added to the commit.");
+            System.exit(0);
+        }
 
-    /* 保存当前的暂存区 */
-    static void saveStage(StagingArea stage) {
-        writeObject(Repository.indexFile, stage);
+        /* 读取当前 HEAD 分支对应的 commit 的内容 */
+        String headBranch = readHEAD();
+        String headCommitID = readBranchCommitID(headBranch);
+        Commit headCommit = readCommit(headCommitID);
+
+        /* 分析当前暂存区与 headCommit 对应的 blobs 差异 */
+        TreeMap<String, String> blobs = headCommit.visitBlobs();
+        TreeMap<String, String> additions = currentStage.visitAdditions();
+        TreeSet<String> removals = currentStage.visitRemovals();
+
+        for (String fileToRemove : removals) {  // 暂存区删除的文件：需要在 blobs 映射中删除
+            blobs.remove(fileToRemove);
+        }
+        for (String fileToAdd : additions.keySet()) {  // 暂存区增加的文件：需要在 blobs 映射中添加/更新
+            blobs.put(fileToAdd, additions.get(fileToAdd));
+        }
+
+        Commit newCommit = new Commit(message, headCommitID, null, blobs);
+        newCommit.commit(headBranch);
+
+        /* 清空暂存区 */
+        currentStage.clearStage();
     }
 
     /* 读取当前的 HEAD 分支 */
@@ -104,6 +129,12 @@ public class Repository {
         return c;
     }
 
+    /* 更新某个分支对应的 commit */
+    static void updateBranch(String branchName, String commitID) {
+        File branchPath = join(Repository.headsDir, branchName);
+        writeContents(branchPath, commitID);
+    }
+
     /* 将文件内容保存至 blobs */
     static void saveFileContent(String fileName, String BlobID) {
         File filePath = join(Repository.CWD, fileName);
@@ -116,5 +147,4 @@ public class Repository {
         File blobPath = join(Repository.blobsDir, BlobID);
         writeContents(blobPath, fileContent);
     }
-    
 }

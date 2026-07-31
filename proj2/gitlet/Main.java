@@ -44,7 +44,7 @@ public class Main {
                     System.exit(0);
                 }
                 if (args.length != 2) {
-                    if (args.length == 1) {
+                    if (args.length == 1 || args[1].equals("")) {
                         System.out.println("Please enter a commit message.");
                     } else {
                         System.out.println("Incorrect operands.");
@@ -52,6 +52,7 @@ public class Main {
                     System.exit(0);
                 }
                 String message = args[1];
+                Repository.commit(message);
                 break;
             case "rm":
                 if (!isInitialized()) {
