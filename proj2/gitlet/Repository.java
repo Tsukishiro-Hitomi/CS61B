@@ -116,7 +116,6 @@ public class Repository {
         if (currentStage.isStagedForAddition(fileName)) {
             currentStage.unstageAddition(fileName);
             currentStage.saveStage();
-            return;
         }
 
         /* 检查文件是否被当前分支跟踪 */
