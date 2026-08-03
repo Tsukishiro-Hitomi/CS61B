@@ -116,12 +116,32 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length == 2) {
+                    String branchName = args[1];
+                    Repository.checkoutVersion3(branchName);
+                } else if (args.length == 3 && args[1].equals("--")) {
+                    fileName = args[2];
+                    Repository.checkoutVersion1(fileName);
+                } else if (args.length == 4 && args[2].equals("--")) {
+                    String commitID = args[1];
+                    fileName = args[3];
+                    Repository.checkoutVersion2(commitID, fileName);
+                } else {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                   
+                }
                 break;
             case "branch":
                 if (!isInitialized()) {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                      
+                }
+                String branchName = args[1];
+                Repository.branch(branchName);
                 break;
             case "rm-branch":
                 if (!isInitialized()) {

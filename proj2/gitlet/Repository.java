@@ -209,21 +209,119 @@ public class Repository {
         /* 打印被修改并且没有被加入暂存区的文件 */
         System.out.println("=== Modifications Not Staged For commit ===");
         /* 情况一：被当前分支跟踪，在工作区发生变化，并且未被提交到暂存区 */
+        /* 情况二/三：在暂存区的增加区中，但工作区内容与其不同或已被删除 */
+        /* 情况四：未在暂存区的删除区中，但被当前 HEAD 提交跟踪且在工作区中被删除 */
+        System.out.println();
 
 
         /* 打印未被跟踪的内容 */
         System.out.println("=== Untracked Files ===");
+        List<String> fileNames = plainFilenamesIn(Repository.CWD);
+        for (String fileName : fileNames) {
+            if (checkIsUntracked(fileName)) {
+                System.out.println(fileName);
+            }
+        }
+        System.out.println();
     }
 
-    /* status 的 helper function，用于查找情况一 */
-    private static List<String> statusHelper1() {
-        return null;
+    /* 用于实现 checkout 的3种方法 */
+    /* 将 HEAD 分支的该文件写入当前工作区 */
+    static void checkoutVersion1(String fileName) {
+        /* 调用 checkoutVersion2: 将 HEAD 分支对应的该文件写入 */
+
+        String headBranch = readHEADBranch();
+        String headCommitID = readBranchCommitID(headBranch);
+        checkoutVersion2(headCommitID, fileName);
+    }
+
+    /* 将某个提交的该文件写入当前工作区 */
+    static void checkoutVersion2(String commitID, String fileName) {
+        /* 读取该提交 */
+        Commit c = readCommit(commitID);
+        if (c == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+        if (!c.existsFile(fileName)) {
+            System.out.println("File does not exist in that commit.");
+            System.exit(0);
+        }
+
+        checkoutFileFromCommit(c, fileName);
+    }
+
+    /* 将某个分支的全部文件写入当前工作区 */
+    static void checkoutVersion3(String branchName) {
+        /* 调用 checkoutVersion2: 将给分支对应提交的全部文件写入 */
+
+        /* 检查是否与当前 HEAD 分支相同 */
+        String currentHEADBranch = readHEADBranch();
+        if (currentHEADBranch.equals(branchName)) {
+            System.out.println("No need to checkout the current branch.");
+            System.exit(0);
+        }
+
+        /* 检查该分支是否存在 */
+        String branchCommitID = readBranchCommitID(branchName);
+        if (branchCommitID == null) {
+            System.out.println("No such branch exists.");
+            System.exit(0);
+        }
+
+        /* 遍历该提交的所有文件，写入工作区 */
+        Commit c = readCommit(branchCommitID);
+        TreeMap<String, String> commitBlobs = c.visitBlobs();
+        for (String fileName : commitBlobs.keySet()) {
+            /* 检查文件是否未被跟踪 */
+            if (checkIsUntracked(fileName)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+        for (String fileName : commitBlobs.keySet()) {
+            checkoutFileFromCommit(c, fileName);
+        }
+
+        // 更新 HEAD
+        writeContents(Repository.HEADFile,branchName);
+
+        // 清空暂存区
+        StagingArea currentStage = StagingArea.readStage();
+        currentStage.clearStage();
+    }
+
+    /* 将某个 commit 中的文件写入工作区，checkoutVersion1/2/3 的工具函数 */
+    private static void checkoutFileFromCommit(Commit c, String fileName) {
+        /* 读取该提交内存储的文件内容 */
+        String blobID = c.findBlobID(fileName);
+        byte[] blobContent = readBlobContent(blobID);
+
+        File currentFile = join(Repository.CWD, fileName);
+        writeContents(currentFile, blobContent);
+    }
+
+    /* 用于实现 branch 方法 */
+    static public void branch(String branchName) {
+        File branchPath = join(headsDir, branchName);
+        /* 检查是否有同名分支存在 */
+        if (checkIsValidFile(branchPath)) {
+            System.out.println("A branch with that name already exists.");
+            System.exit(0);
+        }
+        String headBranch = readHEADBranch();
+        String headBranchCommitID = readBranchCommitID(headBranch);
+        writeContents(branchPath, headBranchCommitID);
     }
 
     /* 检查文件是否存在 */
-    private static boolean checkIsValidFile(String fileName) {
+    static private boolean checkIsValidFile(String fileName) {
         File filePath = join(Repository.CWD, fileName);
         return filePath.exists() && filePath.isFile();
+    }
+
+    static private boolean checkIsValidFile(File filePath) {
+        return filePath.exists() && filePath.isFile();   
     }
 
     /* 从工作区中删除文件 */
@@ -243,6 +341,9 @@ public class Repository {
     /* 读取某个分支对应的 commitID */
     static String readBranchCommitID(String branch) {
         File commitIDFile = join(headsDir, branch);
+        if (!checkIsValidFile(commitIDFile)) {
+            return null;
+        }
         String commitID = readContentsAsString(commitIDFile);
         return commitID;
     }
@@ -250,6 +351,9 @@ public class Repository {
     /* 读取某一次 commit 的内容 */
     static Commit readCommit(String commitID) {
         File commitFile = join(commitsDir, commitID);
+        if (!checkIsValidFile(commitFile)) {
+            return null;
+        }
         Commit c = readObject(commitFile, Commit.class);
         return c;
     }
@@ -278,5 +382,30 @@ public class Repository {
         byte[] fileContent = readContents(filePath);        
         File blobPath = join(Repository.blobsDir, BlobID);
         writeContents(blobPath, fileContent);
+    }
+
+    /* 根据 ID 读取某个 blob 内容 */
+    static byte[] readBlobContent(String blobID) {
+        File blobPath = join(Repository.blobsDir, blobID);
+        byte[] blobContent = readContents(blobPath);
+        return blobContent;
+    }
+
+    /* 检查工作区文件是否未被跟踪
+    未跟踪含义：存在于工作区，不在 HEAD 对应的 Commit 中，不在暂存区中 */
+    static boolean checkIsUntracked(String fileName) {
+        File filePath = join(Repository.CWD, fileName);
+        if (!checkIsValidFile(fileName)) {
+            return false;
+        }
+        Commit headCommit = readHEADCommit();
+        if (headCommit.existsFile(fileName)) {
+            return false;
+        }
+        StagingArea currentStage = StagingArea.readStage();
+        if (currentStage.isStagedForAddition(fileName)) {
+            return false;
+        }
+        return true;
     }
 }
