@@ -148,6 +148,12 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                      
+                }
+                branchName = args[1];
+                Repository.removeBranch(branchName);
                 break;
             case "reset":
                 if (!isInitialized()) {

@@ -303,15 +303,34 @@ public class Repository {
 
     /* 用于实现 branch 方法 */
     static public void branch(String branchName) {
-        File branchPath = join(headsDir, branchName);
+        File branchPath = join(Repository.headsDir, branchName);
         /* 检查是否有同名分支存在 */
         if (checkIsValidFile(branchPath)) {
             System.out.println("A branch with that name already exists.");
             System.exit(0);
         }
+        /* 新建分支，写入当前 HEAD 分支对应的 CommitID */
         String headBranch = readHEADBranch();
         String headBranchCommitID = readBranchCommitID(headBranch);
         writeContents(branchPath, headBranchCommitID);
+    }
+
+    /* 用于实现 rm-branch 方法 */
+    static public void removeBranch(String branchName) {
+        /* 检查是否为当前 HEAD 分支 */
+        String currentHEADBranch = readHEADBranch();
+        if (currentHEADBranch.equals(branchName)) {
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
+        }
+        /* 检查该分支是否存在 */
+        File branchPath = join(Repository.headsDir, branchName);
+        if (!checkIsValidFile(branchPath)) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        /* 删除该分支 */
+        branchPath.delete();
     }
 
     /* 检查文件是否存在 */
