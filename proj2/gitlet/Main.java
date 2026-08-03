@@ -160,6 +160,12 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                      
+                }
+                String commitID = args[1];
+                Repository.reset(commitID);
                 break;
             case "merge":
                 if (!isInitialized()) {

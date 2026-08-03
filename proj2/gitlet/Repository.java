@@ -271,17 +271,7 @@ public class Repository {
 
         /* 遍历该提交的所有文件，写入工作区 */
         Commit c = readCommit(branchCommitID);
-        TreeMap<String, String> commitBlobs = c.visitBlobs();
-        for (String fileName : commitBlobs.keySet()) {
-            /* 检查文件是否未被跟踪 */
-            if (checkIsUntracked(fileName)) {
-                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
-                System.exit(0);
-            }
-        }
-        for (String fileName : commitBlobs.keySet()) {
-            checkoutFileFromCommit(c, fileName);
-        }
+        checkoutAllFileFromCommit(c);
 
         // 更新 HEAD
         writeContents(Repository.HEADFile,branchName);
@@ -299,6 +289,32 @@ public class Repository {
 
         File currentFile = join(Repository.CWD, fileName);
         writeContents(currentFile, blobContent);
+    }
+
+    /* 将某个 commit 的所有文件写入工作区，checkoutVersion3 的工具函数
+    将 commitID 而非 branchName 作为接口，便于后面的 reset 方法复用 */
+    private static void checkoutAllFileFromCommit(Commit c) {
+        TreeMap<String, String> commitBlobs = c.visitBlobs();
+        for (String fileName : commitBlobs.keySet()) {
+            /* 检查文件是否未被跟踪 */
+            if (checkIsUntracked(fileName)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+
+        /* 删除工作区内当前分支跟踪而目标分支不跟踪的文件 */
+        Commit currentCommit = readHEADCommit();
+        for (String fileName : currentCommit.visitBlobs().keySet()) {
+            if (!c.existsFile(fileName)) {
+                deleteFile(fileName);
+            }
+        }
+
+        /* 写入文件 */
+        for (String fileName : commitBlobs.keySet()) {
+            checkoutFileFromCommit(c, fileName);
+        }
     }
 
     /* 用于实现 branch 方法 */
@@ -331,6 +347,40 @@ public class Repository {
         }
         /* 删除该分支 */
         branchPath.delete();
+    }
+
+    /* 用于实现 reset 方法 */
+    static public void reset(String commitID) {
+        /* 检查该 commitID 是否存在 */
+        Commit c = readCommit(commitID);
+        if (c == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+
+        checkoutAllFileFromCommit(c);
+
+        /* 更新 HEAD 分支指向该提交 */
+        String headBranch = readHEADBranch();
+        updateBranch(headBranch, commitID);
+
+        // 清空暂存区
+        StagingArea currentStage = StagingArea.readStage();
+        currentStage.clearStage();
+    }
+
+    /* 对 commitID 实现前缀匹配 */
+    static private String abbreviatedID(String commitID) {
+        if (commitID.length() == 40) {
+            return commitID;
+        }
+        List<String> commitIDs = plainFilenamesIn(Repository.commitsDir);
+        for (String fullcommitID : commitIDs) {
+            if (fullcommitID.startsWith(commitID)) {
+                return fullcommitID;
+            }
+        }
+        return null;
     }
 
     /* 检查文件是否存在 */
