@@ -3,9 +3,11 @@ package gitlet;
 import java.io.File;
 import static gitlet.Utils.*;
 import gitlet.Commit;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.List;
+import java.util.ArrayList;
 
 // TODO: any imports you need here
 
@@ -207,10 +209,27 @@ public class Repository {
         System.out.println();
 
         /* 打印被修改并且没有被加入暂存区的文件 */
-        System.out.println("=== Modifications Not Staged For commit ===");
+        System.out.println("=== Modifications Not Staged For Commit ===");
         /* 情况一：被当前分支跟踪，在工作区发生变化，并且未被提交到暂存区 */
-        /* 情况二/三：在暂存区的增加区中，但工作区内容与其不同或已被删除 */
+        List<String> result = statusHelper1();
+        for (String fileName : result) {
+            System.out.println(String.format("%s (modified)", fileName));
+        }
+        /* 情况二：在暂存区的增加区中，但工作区内容与其不同 */
+        result = statusHelper2();
+        for (String fileName : result) {
+            System.out.println(String.format("%s (modified)", fileName));
+        }
+        /* 情况三：在暂存区的增加区中，但在工作区中被删除 */
+        result = statusHelper3();
+        for (String fileName : result) {
+            System.out.println(String.format("%s (deleted)", fileName));
+        }
         /* 情况四：未在暂存区的删除区中，但被当前 HEAD 提交跟踪且在工作区中被删除 */
+        result = statusHelper4();
+        for (String fileName : result) {
+            System.out.println(String.format("%s (deleted)", fileName));
+        }
         System.out.println();
 
 
@@ -381,6 +400,99 @@ public class Repository {
             }
         }
         return null;
+    }
+
+    /* status 方法情况一：被当前分支跟踪，在工作区发生变化，且未被提交到暂存区 */
+    static private List<String> statusHelper1() {
+        List<String> result = new ArrayList<String> ();
+        Commit c = readHEADCommit();
+        TreeMap<String, String> b = c.visitBlobs();
+
+        StagingArea currentStage = StagingArea.readStage();
+        for (Map.Entry<String, String> e : b.entrySet()) {
+            String fileName = e.getKey();
+            String fileContentSHA1 = e.getValue();
+
+            /* 排除掉已经被提交到暂存区和不存在于工作区的文件 */
+            if (currentStage.isStagedForAddition(fileName)) {
+                continue;
+            }
+            if (!checkIsValidFile(fileName)) {
+                continue;
+            }
+
+            /* 通过 sha1 对比工作区的文件内容与 commit 中记录的文件内容 */
+            File filePath = join(Repository.CWD, fileName);
+            byte[] currentContent = readContents(filePath);
+            String currentContentSHA1 = sha1(currentContent);
+
+            if (!fileContentSHA1.equals(currentContentSHA1)) {
+                result.add(fileName);
+            }
+        }
+
+        return result;
+    }
+
+    /* status 方法情况二： 在暂存区的增加区中，但工作区内容与其不同 */
+    static private List<String> statusHelper2() {
+        List<String> result = new ArrayList<String> ();
+        StagingArea currentStage = StagingArea.readStage();
+        TreeMap<String, String> additions = currentStage.visitAdditions();
+        for (Map.Entry<String, String> e : additions.entrySet()) {
+            String fileName = e.getKey();
+            String fileContentSHA1 = e.getValue();    
+            if (!checkIsValidFile(fileName)) {
+                continue;
+            }
+            /* 通过 sha1 对比工作区的文件内容与 commit 中记录的文件内容 */
+            File filePath = join(Repository.CWD, fileName);
+            byte[] currentContent = readContents(filePath);
+            String currentContentSHA1 = sha1(currentContent);
+
+            if (!fileContentSHA1.equals(currentContentSHA1)) {
+                result.add(fileName);
+            }
+        }
+        return result;
+    }
+
+    /* status 方法情况三： 在暂存区的增加区中，但在工作区中已被删除 */
+    static private List<String> statusHelper3() {
+        List<String> result = new ArrayList<String> ();
+        StagingArea currentStage = StagingArea.readStage();
+        TreeMap<String, String> additions = currentStage.visitAdditions();
+        for (Map.Entry<String, String> e : additions.entrySet()) {
+            String fileName = e.getKey();
+            String fileContentSHA1 = e.getValue();    
+            if (!checkIsValidFile(fileName)) {
+                result.add(fileName);
+            }
+        }
+        return result;
+    }
+
+    /* status 方法情况四：未在暂存区的删除区中，但被当前 HEAD 提交跟踪且在工作区中被删除 */
+    static private List<String> statusHelper4() {
+        List<String> result = new ArrayList<String> ();
+        Commit c = readHEADCommit();
+        TreeMap<String, String> b = c.visitBlobs();
+
+        StagingArea currentStage = StagingArea.readStage();
+        for (Map.Entry<String, String> e : b.entrySet()) {
+            String fileName = e.getKey();
+            String fileContentSHA1 = e.getValue();
+            
+            /* 排除已提交到删除区的文件 */
+            if (currentStage.isStagedForRemovals(fileName)) {
+                continue;
+            }
+
+            if (!checkIsValidFile(fileName)) {
+                result.add(fileName);
+            }
+        } 
+        return result;
     }
 
     /* 检查文件是否存在 */
