@@ -1,13 +1,11 @@
 package gitlet;
 
-import java.util.Date; 
-import java.util.Formatter;
+import java.util.Date;
 import java.util.Locale;
 
 import static gitlet.Utils.*;
 import java.io.File;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.TreeMap;
 
 /** Represents a gitlet commit object.*/
@@ -45,7 +43,7 @@ public class Commit implements Serializable {
 
     public void commit(String currentBranchName) {
         /* 在 commits 目录下新建同名 commit ，将自己序列化写入*/
-        File commitFile = join(Repository.commitsDir, this.ID);
+        File commitFile = join(Repository.COMMITS_DIR, this.ID);
         writeObject(commitFile, this);
 
         /* 更新分支对应的 commit */
@@ -64,18 +62,18 @@ public class Commit implements Serializable {
         
         /* 在 commits 目录下新建与 id 同名的提交。
         该提交文件将 commit Object 序列化写入。 */
-        File commitFile = join(Repository.commitsDir, init.ID);
+        File commitFile = join(Repository.COMMITS_DIR, init.ID);
         writeObject(commitFile, init);
         
         /* 在 heads 目录下新建名为 master 的分支，该分支指向当前的 id。*/
-        File masterFile = join(Repository.headsDir, "master");
+        File masterFile = join(Repository.HEADS_DIR, "master");
         writeContents(masterFile, init.ID);
 
         /* 当前 HEAD 指向 master */
-        writeContents(Repository.HEADFile, "master");
+        writeContents(Repository.HEAD_FILE, "master");
 
         /* 在 index 中写入一个空的 StagingArea */
-        writeObject(Repository.indexFile, new StagingArea());
+        writeObject(Repository.INDEX_FILE, new StagingArea());
     }
 
     public void printCommit() {

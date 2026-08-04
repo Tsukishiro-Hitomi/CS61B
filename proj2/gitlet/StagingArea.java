@@ -1,8 +1,6 @@
 package gitlet;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.TreeMap;
-import java.util.Set;
 import java.util.TreeSet;
 import static gitlet.Utils.*;
 
@@ -16,7 +14,7 @@ public class StagingArea implements Serializable {
     }
 
     /* 将文件加入暂存区 */
-    public boolean stageAddition(String fileName, String BlobID) {
+    public boolean stageAddition(String fileName, String blobID) {
         /* 如果删除文件已经存在于删除区，则移除 */
         if (isStagedForRemovals(fileName)) {
             unstageRemoval(fileName);
@@ -25,9 +23,9 @@ public class StagingArea implements Serializable {
         if (isStagedForAddition(fileName)) {
             unstageAddition(fileName);
         }
-        if (!isSameAsHEAD(fileName, BlobID)) {
+        if (!isSameAsHEAD(fileName, blobID)) {
             /* 增加区加入文件名 */
-            additions.put(fileName, BlobID);
+            additions.put(fileName, blobID);
             return true;
         }
         return false;
@@ -54,12 +52,12 @@ public class StagingArea implements Serializable {
         removals.remove(fileName);
     }
 
-    /* 用于比较当前文件的 BlobID 是否与当前的 HEAD 提交相同 */
-    private boolean isSameAsHEAD(String fileName, String BlobID) {
-        Commit HeadCommit = Repository.readHEADCommit();
-        String HeadBlobID = HeadCommit.findBlobID(fileName);
+    /* 用于比较当前文件的 blobID 是否与当前的 HEAD 提交相同 */
+    private boolean isSameAsHEAD(String fileName, String blobID) {
+        Commit headCommit = Repository.readHEADCommit();
+        String headBlobID = headCommit.findBlobID(fileName);
         /* 注意字符串的比较用.equals() */
-        if (HeadBlobID != null && HeadBlobID.equals(BlobID)) {
+        if (headBlobID != null && headBlobID.equals(blobID)) {
             return true;
         }
         return false;
@@ -67,12 +65,12 @@ public class StagingArea implements Serializable {
 
     /* 读取当前的暂存区 */
     static StagingArea readStage() {
-        return readObject(Repository.indexFile, StagingArea.class);
+        return readObject(Repository.INDEX_FILE, StagingArea.class);
     }
 
     /* 保存当前的暂存区 */
     public void saveStage() {
-        writeObject(Repository.indexFile, this);
+        writeObject(Repository.INDEX_FILE, this);
     }
 
     /* 清除暂存区 */

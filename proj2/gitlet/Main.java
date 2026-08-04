@@ -1,10 +1,8 @@
 package gitlet;
-import java.io.File;
-import static gitlet.Utils.*;
+
 import static gitlet.Repository.*;
-import gitlet.Commit;
+
 /** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
  */
 public class Main {
 
