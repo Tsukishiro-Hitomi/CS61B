@@ -9,8 +9,8 @@ public class StagingArea implements Serializable {
     private TreeSet<String> removals;
 
     public StagingArea() {
-        additions = new TreeMap<String, String> ();
-        removals = new TreeSet<String> ();
+        additions = new TreeMap<String, String>();
+        removals = new TreeSet<String>();
     }
 
     /* 将文件加入暂存区 */

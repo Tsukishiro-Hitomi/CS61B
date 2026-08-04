@@ -80,9 +80,12 @@ public class Commit implements Serializable {
         System.out.println("===");
         System.out.println(String.format("commit %s", this.ID));
         if (this.secondParent != null) {
-            System.out.println(String.format("Merge: %s %s", this.parent.substring(0, 7), this.secondParent.substring(0, 7)));
+            System.out.println(String.format("Merge: %s %s",
+                    this.parent.substring(0, 7),
+                    this.secondParent.substring(0, 7)));
         }
-        System.out.println(String.format(Locale.US, "Date: %1$ta %1$tb %1$td %1$tT %1$tY %1$tz", this.date));
+        System.out.println(String.format(Locale.US,
+                "Date: %1$ta %1$tb %1$td %1$tT %1$tY %1$tz", this.date));
         System.out.println(this.message);
         System.out.println();
     }
