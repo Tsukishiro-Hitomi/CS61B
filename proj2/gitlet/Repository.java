@@ -2,29 +2,22 @@ package gitlet;
 
 import java.io.File;
 import static gitlet.Utils.*;
+import java.util.Objects;
 import gitlet.Commit;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.ArrayDeque;
 
 // TODO: any imports you need here
 
 /** Represents a gitlet repository.
- *  TODO: It's a good idea to give a description here of what else this Class
- *  does at a high level.
- *
- *  @author TODO
  */
 public class Repository {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Repository class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided two examples for you.
-     */
 
     /** The current working directory. */
     public static final File CWD = new File(System.getProperty("user.dir"));
@@ -80,10 +73,10 @@ public class Repository {
     }
 
     /* 用于实现 commit 方法 */
-    static void commit(String message) {
+    static void commit(String message, String secondParent) {
         /* 检查当前暂存区是否为空 */
         StagingArea currentStage = StagingArea.readStage();
-        if (currentStage.isEmptyStage()) {
+        if (currentStage.isEmptyStage() && secondParent == null) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
@@ -94,7 +87,7 @@ public class Repository {
         Commit headCommit = readCommit(headCommitID);
 
         /* 分析当前暂存区与 headCommit 对应的 blobs 差异 */
-        TreeMap<String, String> blobs = headCommit.visitBlobs();
+        TreeMap<String, String> blobs = new TreeMap<>(headCommit.visitBlobs());
         TreeMap<String, String> additions = currentStage.visitAdditions();
         TreeSet<String> removals = currentStage.visitRemovals();
 
@@ -105,7 +98,7 @@ public class Repository {
             blobs.put(fileToAdd, additions.get(fileToAdd));
         }
 
-        Commit newCommit = new Commit(message, headCommitID, null, blobs);
+        Commit newCommit = new Commit(message, headCommitID, secondParent, blobs);
         newCommit.commit(headBranch);
 
         /* 清空暂存区 */
@@ -210,24 +203,34 @@ public class Repository {
 
         /* 打印被修改并且没有被加入暂存区的文件 */
         System.out.println("=== Modifications Not Staged For Commit ===");
+        TreeSet<String> modified = new TreeSet<String> ();
+        TreeSet<String> deleted = new TreeSet<String> ();
+
         /* 情况一：被当前分支跟踪，在工作区发生变化，并且未被提交到暂存区 */
         List<String> result = statusHelper1();
         for (String fileName : result) {
-            System.out.println(String.format("%s (modified)", fileName));
+            modified.add(fileName);
         }
         /* 情况二：在暂存区的增加区中，但工作区内容与其不同 */
         result = statusHelper2();
         for (String fileName : result) {
-            System.out.println(String.format("%s (modified)", fileName));
+            modified.add(fileName);
         }
         /* 情况三：在暂存区的增加区中，但在工作区中被删除 */
         result = statusHelper3();
         for (String fileName : result) {
-            System.out.println(String.format("%s (deleted)", fileName));
+            deleted.add(fileName);
         }
         /* 情况四：未在暂存区的删除区中，但被当前 HEAD 提交跟踪且在工作区中被删除 */
         result = statusHelper4();
         for (String fileName : result) {
+            deleted.add(fileName);
+        }
+
+        for (String fileName : modified) {
+            System.out.println(String.format("%s (modified)", fileName));
+        }
+        for (String fileName : deleted) {
             System.out.println(String.format("%s (deleted)", fileName));
         }
         System.out.println();
@@ -257,6 +260,7 @@ public class Repository {
     /* 将某个提交的该文件写入当前工作区 */
     static void checkoutVersion2(String commitID, String fileName) {
         /* 读取该提交 */
+        commitID = abbreviatedID(commitID);
         Commit c = readCommit(commitID);
         if (c == null) {
             System.out.println("No commit with that id exists.");
@@ -371,6 +375,7 @@ public class Repository {
     /* 用于实现 reset 方法 */
     static public void reset(String commitID) {
         /* 检查该 commitID 是否存在 */
+        commitID = abbreviatedID(commitID);
         Commit c = readCommit(commitID);
         if (c == null) {
             System.out.println("No commit with that id exists.");
@@ -386,6 +391,74 @@ public class Repository {
         // 清空暂存区
         StagingArea currentStage = StagingArea.readStage();
         currentStage.clearStage();
+    }
+
+    /* 用于实现 merge 方法 */
+    static public void merge(String branchName) {
+        StagingArea currentStage = StagingArea.readStage();
+        if (!currentStage.isEmptyStage()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
+        String givenBranchCommitID = readBranchCommitID(branchName);
+        if (givenBranchCommitID == null) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        };
+
+        String currentBranch = readHEADBranch();
+        String currentBranchCommitID = readBranchCommitID(currentBranch);
+        if (currentBranch.equals(branchName)) {
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
+        }
+
+        Commit currentCommit = readHEADCommit();
+        Commit givenCommit = readCommit(givenBranchCommitID);
+
+        /* 寻找分裂点 */
+        String splitPointID = findSplitPoint(currentBranchCommitID, givenBranchCommitID);
+        Commit splitPoint = readCommit(splitPointID);
+        
+        /* 分裂点是要合并的分支 Commit：说明该 Commit 是当前分支的祖先，无需合并 */
+        if (splitPointID.equals(givenBranchCommitID)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+
+        /* 分裂点是当前 HEAD 分支 Commit：快进当前分支到目标分支 */
+        if (splitPointID.equals(currentBranchCommitID)) {
+            checkoutAllFileFromCommit(givenCommit);
+            updateBranch(currentBranch, givenBranchCommitID);
+            currentStage.clearStage();
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+
+        /* 保守检查未追踪文件 */
+        for (String fileName : givenCommit.visitBlobs().keySet()) {
+            if (checkIsUntracked(fileName)) {
+                System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                System.exit(0);
+            }
+        }
+
+        TreeSet<String> allFileNames = findAllFileNames(splitPoint, currentCommit, givenCommit);
+        boolean hasMetConflict = false;
+        /* 对文件逐个处理，并记录是否遇到冲突 */
+        for (String fileName : allFileNames) {
+            if (handleFile(fileName, splitPoint, currentCommit, givenCommit)) {
+                hasMetConflict = true;
+            }
+        }
+
+        /* 调用 commit 方法 */
+        String commitMessage = String.format("Merged %s into %s.", branchName, currentBranch);
+        commit(commitMessage, givenBranchCommitID);
+        
+        if (hasMetConflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
     }
 
     /* 对 commitID 实现前缀匹配 */
@@ -495,6 +568,136 @@ public class Repository {
         return result;
     }
 
+    /* merge 方法：用于寻找分裂点 */
+    static private String findSplitPoint(String currentCommitID, String objectCommitID) {
+        TreeMap<String, Integer> currentCommitAncestors = findAncestors(currentCommitID);
+        TreeMap<String, Integer> objectCommitAncestors = findAncestors(objectCommitID);
+        int minDistance = Integer.MAX_VALUE;
+        String resultCommitID = null;
+
+        /* 寻找距离最短的点作为最近的公共祖先节点 */
+        for (Map.Entry<String, Integer> e : currentCommitAncestors.entrySet()) {
+            String commitID = e.getKey();
+            int distance = e.getValue();
+
+            if (objectCommitAncestors.containsKey(commitID) && distance < minDistance) {
+                resultCommitID = commitID;
+                minDistance = distance;
+            }
+        }
+        return resultCommitID;
+    }
+
+    /* 使用 BFS 记录所有祖先节点以及与当前节点的距离 */
+    static private TreeMap<String, Integer> findAncestors(String commitID) {
+        TreeMap<String, Integer> result = new TreeMap<String, Integer> ();
+        int distance = 0;
+        Deque<String> record = new ArrayDeque<String>();
+        /* 对于 DAG 的 BFS 遍历，需要记录已经遍历了哪些节点，避免重复遍历导致无限循环 */
+        HashSet<String> seen = new HashSet<String> ();
+
+        record.addLast(commitID);
+        while (!record.isEmpty()) {
+            int currentSize = record.size();
+            for (int i = 0; i < currentSize; i++) {
+                String currentCommitID = record.removeFirst();
+
+                /* 避免重复遍历 */
+                if (seen.contains(currentCommitID)) {
+                    continue;
+                }
+
+                result.put(currentCommitID, distance);
+                seen.add(currentCommitID);
+
+                Commit currentCommit = readCommit(currentCommitID);
+                String parent = currentCommit.visitParent();
+                String secondParent = currentCommit.visitSecondParent();
+
+                if (parent != null) {
+                    record.addLast(parent);
+                }
+
+                if (secondParent != null) {
+                    record.addLast(secondParent);
+                }
+            }
+            distance += 1;
+        }
+        return result;
+    }
+
+    /* 用于获取三个提交的文件并集 */
+    static private TreeSet<String> findAllFileNames(Commit splitPoint, Commit currentCommit, Commit givenCommit) {
+        TreeSet<String> result = new TreeSet<String> ();
+        for (String fileName : splitPoint.visitBlobs().keySet()) {
+            result.add(fileName);
+        }
+        for (String fileName : currentCommit.visitBlobs().keySet()) {
+            result.add(fileName);
+        }
+        for (String fileName : givenCommit.visitBlobs().keySet()) {
+            result.add(fileName);
+        }
+        return result;
+    }
+
+    /* merge 核心：对文件逐个处理 */
+    static private boolean handleFile(String fileName, Commit splitPoint, Commit currentCommit, Commit givenCommit) {
+        String splitPointBlobID = splitPoint.findBlobID(fileName);
+        String currentCommitBlobID = currentCommit.findBlobID(fileName);
+        String givenCommitBlobID = givenCommit.findBlobID(fileName);
+
+        StagingArea currentStage = StagingArea.readStage();
+
+        /* 都被删除 */
+        if (currentCommitBlobID == null && givenCommitBlobID == null) {
+            return false;
+        }
+
+        /* 相同修改 */  
+        if (Objects.equals(currentCommitBlobID, givenCommitBlobID)) {
+            return false;
+        }
+
+        /* 只有 current 分支改动 */
+        if (!Objects.equals(currentCommitBlobID, splitPointBlobID) && Objects.equals(givenCommitBlobID, splitPointBlobID)) {
+            return false;
+        }
+
+        /* 只有 given 分支改动 */
+        if (Objects.equals(currentCommitBlobID, splitPointBlobID) && !Objects.equals(givenCommitBlobID, splitPointBlobID)) {
+            /* 如果 given 分支将该文件删除 */
+            if (givenCommitBlobID == null) {
+                /* 从工作区删除，添加到暂存区的删除区 */
+                currentStage.stageRemoval(fileName);
+                deleteFile(fileName);
+            } else {
+                /* 如果只是修改：checkout given 分支的版本，添加到暂存区的添加区 */
+                String blobID = givenCommit.findBlobID(fileName);
+                currentStage.stageAddition(fileName, blobID);
+                checkoutFileFromCommit(givenCommit, fileName);
+            }
+            currentStage.saveStage();
+            return false;
+        }
+
+        /* 遇到冲突 */
+        String currentContents = readBlobContentAsString(currentCommitBlobID);
+        String givenContents = readBlobContentAsString(givenCommitBlobID);
+        String conflict = "<<<<<<< HEAD\n" + currentContents + "=======\n" + givenContents + ">>>>>>>\n";
+
+        /* 将冲突内容写入工作区文件，并提交到暂存区的增加区 */
+        File filePath = join(Repository.CWD, fileName);
+        writeContents(filePath, conflict);
+        String blobID = computeBlobID(fileName);
+        /* 保存新文件内容到对应 blob 路径 */
+        saveFileContent(fileName, blobID);
+        currentStage.stageAddition(fileName, blobID);
+        currentStage.saveStage();
+        return true;
+    }
+
     /* 检查文件是否存在 */
     static private boolean checkIsValidFile(String fileName) {
         File filePath = join(Repository.CWD, fileName);
@@ -568,8 +771,28 @@ public class Repository {
     /* 根据 ID 读取某个 blob 内容 */
     static byte[] readBlobContent(String blobID) {
         File blobPath = join(Repository.blobsDir, blobID);
+        if (!checkIsValidFile(blobPath)) {
+            return null;
+        }
         byte[] blobContent = readContents(blobPath);
         return blobContent;
+    }
+
+    static String readBlobContentAsString(String blobID) {
+        if (blobID == null) {
+            return "";
+        }
+        File blobPath = join(Repository.blobsDir, blobID);
+        String blobContent = readContentsAsString(blobPath);
+        return blobContent;       
+    }
+
+    /* 根据文件名计算对应的 blobID */
+    static String computeBlobID(String fileName) {
+        File filePath = join(Repository.CWD, fileName);
+        String fileContents = readContentsAsString(filePath);
+        String blobID = sha1(fileContents);
+        return blobID;
     }
 
     /* 检查工作区文件是否未被跟踪

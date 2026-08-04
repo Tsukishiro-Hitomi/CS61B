@@ -44,15 +44,16 @@ public class Main {
                     System.exit(0);
                 }
                 if (args.length != 2) {
-                    if (args.length == 1 || args[1].equals("")) {
-                        System.out.println("Please enter a commit message.");
-                    } else {
-                        System.out.println("Incorrect operands.");
-                    }
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);
+                }
+                if (args[1].equals("")) {
+                    System.out.println("Please enter a commit message.");
                     System.exit(0);
                 }
                 String message = args[1];
-                Repository.commit(message);
+                /* 对于正常 commit: 默认其 secondParent 为 null。只有在 merge 才会遇到 */
+                Repository.commit(message, null);
                 break;
             case "rm":
                 if (!isInitialized()) {
@@ -172,6 +173,12 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                      
+                }
+                branchName = args[1];
+                Repository.merge(branchName);                
                 break;
             default:
                 System.out.println("No command with that name exists.");
@@ -180,12 +187,6 @@ public class Main {
     }
 
     private static boolean isInitialized() {
-        /** The current working directory. */
-        File CWD = new File(System.getProperty("user.dir"));
-        /** The .gitlet directory. */
-        File GITLET_DIR = join(CWD, ".gitlet");
-
-        /* check if the dir .gitlet exists */
-        return GITLET_DIR.isDirectory();
+        return Repository.GITLET_DIR.isDirectory();
     }
 }

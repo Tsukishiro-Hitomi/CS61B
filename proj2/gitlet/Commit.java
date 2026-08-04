@@ -13,14 +13,6 @@ import java.util.TreeMap;
 /** Represents a gitlet commit object.*/
 
 public class Commit implements Serializable {
-    /**
-     * TODO: add instance variables here.
-     *
-     * List all instance variables of the Commit class here with a useful
-     * comment above them describing what that variable represents and how that
-     * variable is used. We've provided one example for `message`.
-     */
-
     /** commit message. */
     private String message;
     /* commit date. */
@@ -32,9 +24,8 @@ public class Commit implements Serializable {
     private TreeMap<String, String> blobs;
     /* SHA-1 ID */
     private String ID;
-    
 
-    /* TODO: fill in the rest of this class. */
+    /* 该构造函数仅供类内的私有函数 initialCommit 使用 */
     Commit(String message) {
         this.message = message;
     }
@@ -113,6 +104,10 @@ public class Commit implements Serializable {
 
     public String visitParent() {
         return this.parent;
+    }
+
+    public String visitSecondParent() {
+        return this.secondParent;
     }
 
     public String visitMessage() {
