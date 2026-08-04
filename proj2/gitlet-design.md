@@ -72,6 +72,11 @@ is a new process and must reload repository state from disk.
    Serialized `StagingArea` object representing the pending additions and
    removals.
 
+9. `static final File REMOTES_DIR`
+
+   Directory containing remote metadata. Each file is named by a remote name
+   and stores the path to that remote repository's `.gitlet` directory.
+
 #### Helper Methods
 
 1. `isInitialized()`
@@ -116,6 +121,31 @@ is a new process and must reload repository state from disk.
    Restores every file tracked by `target`, deletes files tracked by the current
    head but absent from `target`, and leaves unrelated files alone. This helper
    is shared by branch checkout and reset.
+
+10. `remotePath(String remoteName)`
+
+    Reads `.gitlet/remotes/<remoteName>` and returns the configured remote
+    `.gitlet` directory path. The caller reports `Remote directory not found.`
+    if the path does not name an existing directory.
+
+11. `remoteHeadsDir(File remoteGitletDir)`, `remoteCommitsDir(File
+    remoteGitletDir)`, and `remoteBlobsDir(File remoteGitletDir)`
+
+    Build the standard subdirectories for a remote repository. Remote
+    repositories use the same internal layout as the local repository.
+
+12. `copyReachableCommitsAndBlobs(String startCommitId, File sourceGitletDir,
+    File destinationGitletDir)`
+
+    Starting from a commit id, traverse parents and second parents. For each
+    commit not already present in the destination, copy the serialized commit
+    object and all referenced blobs from source to destination.
+
+13. `isAncestor(String possibleAncestorId, String descendantId, File
+    gitletDir)`
+
+    Returns whether `possibleAncestorId` is reachable by following first and
+    second parent links from `descendantId` inside the given repository.
 
 
 ### `Commit`
@@ -389,6 +419,67 @@ the old current head, and second parent equal to the given branch head. If any
 conflict occurred, print `Encountered a merge conflict.` after the merge commit
 is created.
 
+### `add-remote [remote name] [remote .gitlet directory]`
+
+If a remote with the given name already exists, print `A remote with that name
+already exists.` and stop. Otherwise:
+
+1. Convert all `/` characters in the supplied path into `File.separator`.
+2. Create `.gitlet/remotes` if it does not already exist.
+3. Save the converted path in `.gitlet/remotes/<remote name>`.
+
+The command does not validate whether the target path exists or whether it is a
+real Gitlet repository. Those checks happen when `push`, `fetch`, or `pull`
+uses the remote.
+
+### `rm-remote [remote name]`
+
+If no remote with the given name exists, print `A remote with that name does not
+exist.` and stop. Otherwise delete `.gitlet/remotes/<remote name>`.
+
+### `push [remote name] [remote branch name]`
+
+Load the configured remote path. If the remote `.gitlet` directory does not
+exist, print `Remote directory not found.` and stop. Then:
+
+1. Let `localHead` be the current local branch head.
+2. Look for the remote branch file in the remote repository's `refs/heads`.
+3. If the remote branch exists, read `remoteHead`. If `remoteHead` is not an
+   ancestor of `localHead` in the local commit graph, print `Please pull down
+   remote changes before pushing.` and stop.
+4. Copy every local commit and blob reachable from `localHead` into the remote
+   repository if it is not already present there.
+5. Create the remote branch if it does not exist.
+6. Update the remote branch file so it points to `localHead`.
+
+This command does not modify the local working directory, local `HEAD`, or the
+local staging area.
+
+### `fetch [remote name] [remote branch name]`
+
+Load the configured remote path. If the remote `.gitlet` directory does not
+exist, print `Remote directory not found.` and stop. If the remote repository
+does not have the given branch, print `That remote does not have that branch.`
+and stop. Otherwise:
+
+1. Read the remote branch head commit id.
+2. Copy every commit and blob reachable from that remote head into the local
+   repository if it is not already present locally.
+3. Create or update the local tracking branch named `[remote name]/[remote
+   branch name]` so it points to the fetched remote head.
+
+This command only changes local `.gitlet` metadata and object storage. It does
+not change the working directory, current branch, or staging area.
+
+### `pull [remote name] [remote branch name]`
+
+Run the same logic as `fetch [remote name] [remote branch name]`. If fetch
+fails, stop immediately after printing the fetch error. If fetch succeeds,
+merge the local tracking branch `[remote name]/[remote branch name]` into the
+current branch using the existing `merge` algorithm. Therefore `pull` has the
+combined failure cases of `fetch` and `merge`, and it may modify the working
+directory.
+
 ## Persistence
 
 All persistent state is stored under `.gitlet` in the current working
@@ -403,13 +494,17 @@ directory. No in-memory state is trusted across command invocations.
   refs/
     heads/
       <branch name>    commit id at branch head
+      <remote name>/
+        <branch name>  fetched remote-tracking branch
+  remotes/
+    <remote name>      path to remote .gitlet directory
   HEAD                 current branch name
   index                serialized StagingArea
 ```
 
 Commits and the staging area are saved with `Utils.writeObject` and loaded with
 `Utils.readObject`. Blobs are saved as raw bytes with `Utils.writeContents`.
-Branch files and `HEAD` are small text files.
+Branch files, remote files, and `HEAD` are small text files.
 
 The id of a blob is `sha1(file bytes)`. The id of a commit is computed from the
 commit metadata and the deterministic `TreeMap` of tracked blobs. Because
@@ -421,3 +516,9 @@ perform all error checks before mutating files, then write all changed state
 before returning. Commands that fail due to user error should leave `.gitlet`
 and the working directory unchanged, except for cases where the specification
 explicitly requires deletion such as a successful `rm`.
+
+Remote commands preserve the same object format in every repository. Copying
+between local and remote repositories is just file copying between the two
+repositories' `commits` and `blobs` directories. A remote path is considered
+valid only when the configured `.gitlet` directory exists at command execution
+time.

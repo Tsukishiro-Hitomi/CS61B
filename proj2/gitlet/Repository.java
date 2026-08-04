@@ -23,8 +23,10 @@ public class Repository {
     public static final File COMMITS_DIR = join(GITLET_DIR, "commits");
     public static final File BLOBS_DIR = join(GITLET_DIR, "blobs");
     public static final File HEADS_DIR = join(GITLET_DIR, "refs", "heads");
+    public static final File REMOTE_DIR = join(GITLET_DIR, "remotes");
     public static final File HEAD_FILE = join(GITLET_DIR, "HEAD");
     public static final File INDEX_FILE = join(GITLET_DIR, "index");
+
 
     /* 用于实现 init 方法 */
     static void init() {
@@ -35,6 +37,7 @@ public class Repository {
         Repository.GITLET_DIR.mkdir();
         Repository.COMMITS_DIR.mkdir();
         Repository.BLOBS_DIR.mkdir();
+        Repository.REMOTE_DIR.mkdir();
 
         /* 创建多级目录需要用 mkdirs 命令 */
         Repository.HEADS_DIR.mkdirs();
@@ -475,6 +478,62 @@ public class Repository {
         }
     }
 
+    /* 用于实现 add-remote 方法 */
+    public static void addRemote(String remoteName, String toRemotePath) {
+        File remotePath = join(Repository.REMOTE_DIR, remoteName);
+        if (checkIsValidFile(remotePath)) {
+            System.out.println("A remote with that name already exists.");
+            System.exit(0);
+        }
+        /* 将 toRemotePath 路径中的 '/' 替换为系统分隔符 */
+        String normalizedPath = toRemotePath.replace("/", File.separator);
+        writeContents(remotePath, normalizedPath);
+    }
+
+    /* 用于实现 rm-remote 方法 */
+    public static void removeRemote(String remoteName) {
+        File remotePath = join(Repository.REMOTE_DIR, remoteName);
+        if (!checkIsValidFile(remotePath)) {
+            System.out.println("A remote with that name does not exist.");
+            System.exit(0);
+        }
+        remotePath.delete();
+    }
+
+    /* 用于实现 push 方法 */
+    public static void push(String remoteName, String remoteBranchName) {
+        File remotePath = join(Repository.REMOTE_DIR, remoteName);
+        if (!checkIsValidFile(remotePath)) {
+            System.out.println("A remote with that name does not exist.");
+            System.exit(0);
+        }
+        String toRemotePath = readContentsAsString(remotePath);
+        File remoteGitletPath = new File(toRemotePath);
+
+        if (!checkIsValidDir(remoteGitletPath)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+
+        /* 获取当前分支对应的 Commit */
+        Commit headCommit = readHEADCommit();
+        String headCommitID = headCommit.visitID();
+
+        File remoteGitletBranchPath = join(remoteGitletPath, "refs", "heads", remoteBranchName);
+        if (checkIsValidFile(remoteGitletBranchPath)) {
+            String remoteGitletBranchCommitID = readContentsAsString(remoteGitletBranchPath);
+            /* 检查 remote 分支对应的 commit 是否是当前分支对应的 commit 的祖先  */
+            if (isAncestor(headCommit, remoteGitletBranchCommitID)) {
+                /* 复制当前分支所有独有的 blobs 和 commit */
+                copyBlobsAndCommits(remoteGitletPath, headCommit, remoteGitletBranchCommitID);
+            } else {
+                System.out.println("Please pull down remote changes before pushing.");
+                System.exit(0);
+            }
+        } 
+        writeContents(remoteGitletBranchPath, headCommitID);
+    }
+
     /* 对 commitID 实现前缀匹配 */
     private static String abbreviatedID(String commitID) {
         if (commitID.length() == 40) {
@@ -612,7 +671,7 @@ public class Repository {
     private static TreeMap<String, Integer> findAncestors(String commitID) {
         TreeMap<String, Integer> result = new TreeMap<String, Integer>();
         int distance = 0;
-        Deque<String> record = new ArrayDeque<String>();
+        ArrayDeque<String> record = new ArrayDeque<String>();
         /* 对于 DAG 的 BFS 遍历，
         需要记录已经遍历了哪些节点，避免重复遍历导致无限循环 */
         HashSet<String> seen = new HashSet<String>();
@@ -737,12 +796,23 @@ public class Repository {
         return filePath.exists() && filePath.isFile();   
     }
 
+    /* 检查目录是否存在 */
+    private static boolean checkIsValidDir(File filePath) {
+        return filePath.exists() && filePath.isDirectory();
+    }
+
     /* 从工作区中删除文件 */
     private static void deleteFile(String fileName) {
         if (checkIsValidFile(fileName)) {
             File filePath = join(Repository.CWD, fileName);
             restrictedDelete(filePath);
         }
+    }
+
+    /* 拷贝文件 */
+    private static void copyFile(File src, File dst) {
+        byte[] contents = readContents(src);
+        writeContents(dst, contents);
     }
 
     /* 读取当前的 HEAD 分支 */
@@ -840,5 +910,98 @@ public class Repository {
             return false;
         }
         return true;
+    }
+
+    /* 检查某个 commit 是否是另一个的祖先 */
+    static boolean isAncestor(Commit c, String commitID) {
+        /* BFS 搜索，统计所有祖先 */
+        ArrayDeque<String> record = new ArrayDeque<String>();
+        HashSet<String> seen = new HashSet<String>();
+
+        record.push(c.visitID());
+        while(!record.isEmpty()) {
+            int currentSize = record.size();
+            for (int i = 0; i < currentSize; i++) {
+                String currentCommitID = record.removeFirst();
+                if (seen.contains(currentCommitID)) {
+                    continue;
+                }
+
+                seen.add(currentCommitID);
+                if (currentCommitID.equals(commitID)) {
+                    return true;
+                }
+
+                Commit currentCommit = readCommit(currentCommitID);
+                String parent = currentCommit.visitParent();
+                String secondParent = currentCommit.visitSecondParent();
+
+                if (parent != null) {
+                    record.addLast(parent);
+                }
+
+                if (secondParent != null) {
+                    record.addLast(secondParent);
+                }
+            }
+        }
+        return false;
+    }
+
+    /* 将 headcommit 所有独有的 blobs 和 commits 复制到远端仓库中 */
+    static void copyBlobsAndCommits(File remoteGitletPath, Commit headCommit, String commitID) {
+        /* BFS 搜索，对每个祖先进行复制 */
+        ArrayDeque<String> record = new ArrayDeque<String>();
+        HashSet<String> seen = new HashSet<String>();
+
+        record.push(headCommit.visitID());
+        while(!record.isEmpty()) {
+            int currentSize = record.size();
+            for (int i = 0; i < currentSize; i++) {
+                String currentCommitID = record.removeFirst();
+                if (seen.contains(currentCommitID)) {
+                    continue;
+                }
+
+                seen.add(currentCommitID);
+
+                /* 直到向上遍历遇到 commitID ，复制停止 */
+                if (currentCommitID.equals(commitID)) {
+                    return;
+                }
+
+                Commit c = readCommit(currentCommitID);
+                commitCopyHelper(remoteGitletPath, currentCommitID);
+
+                String parent = c.visitParent();
+                String secondParent = c.visitSecondParent();
+
+                if (parent != null) {
+                    record.addLast(parent);
+                }
+
+                if (secondParent != null) {
+                    record.addLast(secondParent);
+                }
+            }
+        }
+    }
+
+    /* 工具函数：复制每个 commit 的 blobs */
+    static void commitCopyHelper(File remoteGitletPath, String commitID) {
+        File commitPath = join(Repository.COMMITS_DIR, commitID);
+        /* 复制 commit */
+        File remoteCommitPath = join(remoteGitletPath, "commits", commitID);
+        copyFile(commitPath, remoteCommitPath);
+
+        Commit c = readCommit(commitID);
+        TreeMap<String, String> blobs = c.visitBlobs();
+        for(Map.Entry<String, String> e : blobs.entrySet()) {
+            String blobID = e.getValue();
+            File blobPath = join(Repository.BLOBS_DIR, blobID);
+            File remoteBlobPath = join(remoteGitletPath, "blobs", blobID);
+            /* 复制 blob */
+            copyFile(blobPath, remoteBlobPath);
+        }
     }
 }

@@ -178,6 +178,56 @@ public class Main {
                 branchName = args[1];
                 Repository.merge(branchName);                
                 break;
+            case "add-remote":
+                if (!isInitialized()) {
+                    System.out.println("Not in an initialized Gitlet directory.");
+                    System.exit(0);
+                }         
+                if (args.length != 3) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                          
+                }
+                String remoteName = args[1];
+                String toRemotePath = args[2];
+                Repository.addRemote(remoteName, toRemotePath);
+                break;
+            case "rm-remote":
+                if (!isInitialized()) {
+                    System.out.println("Not in an initialized Gitlet directory.");
+                    System.exit(0);
+                }
+                if (args.length != 2) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                          
+                }
+                remoteName = args[1];
+                Repository.removeRemote(remoteName);
+                break;
+            case "push":
+                if (!isInitialized()) {
+                    System.out.println("Not in an initialized Gitlet directory.");
+                    System.exit(0);
+                }
+                if (args.length != 3) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                          
+                }
+                remoteName = args[1];
+                String remoteBranchName = args[2];
+                Repository.push(remoteName, remoteBranchName);
+                break;
+            case "fetch":
+                if (!isInitialized()) {
+                    System.out.println("Not in an initialized Gitlet directory.");
+                    System.exit(0);
+                }
+                break;
+            case "pull":
+                if (!isInitialized()) {
+                    System.out.println("Not in an initialized Gitlet directory.");
+                    System.exit(0);
+                }
+                break;
             default:
                 System.out.println("No command with that name exists.");
                 System.exit(0);
