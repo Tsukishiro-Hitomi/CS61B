@@ -261,6 +261,10 @@ public class Repository {
     static void checkoutVersion2(String commitID, String fileName) {
         /* 读取该提交 */
         commitID = abbreviatedID(commitID);
+        if (commitID == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
         Commit c = readCommit(commitID);
         if (c == null) {
             System.out.println("No commit with that id exists.");
@@ -376,6 +380,10 @@ public class Repository {
     static public void reset(String commitID) {
         /* 检查该 commitID 是否存在 */
         commitID = abbreviatedID(commitID);
+        if (commitID == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
         Commit c = readCommit(commitID);
         if (c == null) {
             System.out.println("No commit with that id exists.");
@@ -580,9 +588,12 @@ public class Repository {
             String commitID = e.getKey();
             int distance = e.getValue();
 
-            if (objectCommitAncestors.containsKey(commitID) && distance < minDistance) {
-                resultCommitID = commitID;
-                minDistance = distance;
+            if (objectCommitAncestors.containsKey(commitID)) {
+                int totalDistance = distance + objectCommitAncestors.get(commitID);
+                if (totalDistance < minDistance) {
+                    resultCommitID = commitID;
+                    minDistance = totalDistance;
+                }
             }
         }
         return resultCommitID;
@@ -790,7 +801,7 @@ public class Repository {
     /* 根据文件名计算对应的 blobID */
     static String computeBlobID(String fileName) {
         File filePath = join(Repository.CWD, fileName);
-        String fileContents = readContentsAsString(filePath);
+        byte[] fileContents = readContents(filePath);
         String blobID = sha1(fileContents);
         return blobID;
     }
