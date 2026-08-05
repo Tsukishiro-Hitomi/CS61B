@@ -9,7 +9,6 @@ import java.util.TreeSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.ArrayDeque;
 
 /** Represents a gitlet repository.
@@ -962,7 +961,7 @@ public class Repository {
         HashSet<String> seen = new HashSet<String>();
 
         record.push(c.visitID());
-        while(!record.isEmpty()) {
+        while (!record.isEmpty()) {
             int currentSize = record.size();
             for (int i = 0; i < currentSize; i++) {
                 String currentCommitID = record.removeFirst();
@@ -998,7 +997,7 @@ public class Repository {
         HashSet<String> seen = new HashSet<String>();
 
         record.push(headCommit.visitID());
-        while(!record.isEmpty()) {
+        while (!record.isEmpty()) {
             int currentSize = record.size();
             for (int i = 0; i < currentSize; i++) {
                 String currentCommitID = record.removeFirst();
@@ -1038,7 +1037,7 @@ public class Repository {
         HashSet<String> seen = new HashSet<String>();
 
         record.push(headCommit.visitID());
-        while(!record.isEmpty()) {
+        while (!record.isEmpty()) {
             int currentSize = record.size();
             for (int i = 0; i < currentSize; i++) {
                 String currentCommitID = record.removeFirst();
@@ -1075,7 +1074,7 @@ public class Repository {
 
         Commit c = readCommit(commitID);
         TreeMap<String, String> blobs = c.visitBlobs();
-        for(Map.Entry<String, String> e : blobs.entrySet()) {
+        for (Map.Entry<String, String> e : blobs.entrySet()) {
             String blobID = e.getValue();
             File blobPath = join(Repository.BLOBS_DIR, blobID);
             File remoteBlobPath = join(remoteGitletPath, "blobs", blobID);
@@ -1093,7 +1092,7 @@ public class Repository {
         copyFile(remoteCommitPath, commitPath);
 
         TreeMap<String, String> blobs = c.visitBlobs();
-        for(Map.Entry<String, String> e : blobs.entrySet()) {
+        for (Map.Entry<String, String> e : blobs.entrySet()) {
             String blobID = e.getValue();
             File blobPath = join(Repository.BLOBS_DIR, blobID);
             File remoteBlobPath = join(remoteGitletPath, "blobs", blobID);
