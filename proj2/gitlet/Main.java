@@ -221,12 +221,26 @@ public class Main {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 3) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                          
+                }
+                remoteName = args[1];
+                remoteBranchName = args[2];
+                Repository.fetch(remoteName, remoteBranchName);
                 break;
             case "pull":
                 if (!isInitialized()) {
                     System.out.println("Not in an initialized Gitlet directory.");
                     System.exit(0);
                 }
+                if (args.length != 3) {
+                    System.out.println("Incorrect operands.");
+                    System.exit(0);                          
+                }
+                remoteName = args[1];
+                remoteBranchName = args[2];
+                Repository.pull(remoteName, remoteBranchName);
                 break;
             default:
                 System.out.println("No command with that name exists.");
