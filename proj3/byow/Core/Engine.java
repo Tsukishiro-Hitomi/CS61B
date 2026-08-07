@@ -5,9 +5,6 @@ import byow.TileEngine.TETile;
 
 public class Engine {
     TERenderer ter = new TERenderer();
-    /* Feel free to change the width and height. */
-    public static final int WIDTH = 80;
-    public static final int HEIGHT = 30;
 
     /**
      * Method used for exploring a fresh world. This method should handle all inputs,
@@ -45,8 +42,15 @@ public class Engine {
         //
         // See proj3.byow.InputDemo for a demo of how you can make a nice clean interface
         // that works for many different input types.
+        input = input.toUpperCase();
+        int end = 1;
+        while (input.chatAt(end) != 'S') {
+            end += 1;
+        }
+        String seedString = input.substring(1, end);
+        long seed = Long.parseLong(seedString);
 
-        TETile[][] finalWorldFrame = null;
+        TETile[][] finalWorldFrame = new World(seed);
         return finalWorldFrame;
     }
 }
